@@ -8,6 +8,10 @@ A CLI tool that discovers EKS clusters across multiple AWS profiles and regions,
 - AWS CLI configured with SSO profiles in `~/.aws/config`
 - Active AWS SSO session (`aws sso login`)
 
+## Install
+
+Download one of the pre-compiled binaries in the GitHub releases page and add it to your PATH. Or follow the build steps:
+
 ## Build
 
 ```sh
