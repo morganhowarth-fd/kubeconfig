@@ -64,6 +64,11 @@ func main() {
 		Results []regionResult
 	}
 
+	// Semaphore to cap concurrent AWS API calls and avoid SSO cache contention.
+	const maxConcurrency = 20
+	sem := make(chan struct{}, maxConcurrency)
+	fmt.Printf("\nScanning with concurrency limit of %d workers...\n", maxConcurrency)
+
 	var (
 		mu             sync.Mutex
 		profileResults []profileResult
@@ -82,7 +87,9 @@ func main() {
 				innerWg.Add(1)
 				go func(region string) {
 					defer innerWg.Done()
+					sem <- struct{}{}
 					found, err := discoverClusters(profile, region)
+					<-sem
 					innerMu.Lock()
 					results = append(results, regionResult{Region: region, Clusters: found, Err: err})
 					innerMu.Unlock()
@@ -189,15 +196,36 @@ func discoverClusters(profile, region string) ([]clusterInfo, error) {
 
 	eksClient := eks.NewFromConfig(cfg)
 
-	listOut, err := eksClient.ListClusters(ctx, &eks.ListClustersInput{})
-	if err != nil {
+	// Retry with exponential backoff to handle transient SSO cache contention
+	// when many profiles refresh tokens concurrently.
+	const maxAttempts = 5
+	var listOut *eks.ListClustersOutput
+	for attempt := range maxAttempts {
+		listOut, err = eksClient.ListClusters(ctx, &eks.ListClustersInput{})
+		if err == nil {
+			break
+		}
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "ForbiddenException") || strings.Contains(errMsg, "No access") {
 			return nil, fmt.Errorf("no access (you may not have permissions for this account)")
 		}
-		if strings.Contains(errMsg, "failed to refresh cached credentials") || strings.Contains(errMsg, "token has expired") {
-			return nil, fmt.Errorf("SSO session expired (run: aws sso login)")
+		if strings.Contains(errMsg, "token is expired") || strings.Contains(errMsg, "Token has expired") || strings.Contains(errMsg, "SSO session") {
+			return nil, fmt.Errorf("SSO session expired (run: aws sso login --profile %s)", profile)
 		}
+		if strings.Contains(errMsg, "failed to refresh cached credentials") {
+			if attempt < maxAttempts-1 {
+				backoff := time.Duration(1<<uint(attempt)) * 500 * time.Millisecond
+				fmt.Printf("    [%s/%s] credential contention, retrying in %s (attempt %d/%d)...\n",
+					profile, region, backoff, attempt+1, maxAttempts)
+				time.Sleep(backoff)
+				continue
+			}
+			return nil, fmt.Errorf("failed to refresh credentials after %d attempts (try: aws sso login --profile %s): %w",
+				maxAttempts, profile, err)
+		}
+		return nil, fmt.Errorf("list clusters: %w", err)
+	}
+	if err != nil {
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
 
