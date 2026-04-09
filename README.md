@@ -11,7 +11,7 @@ A CLI tool that discovers EKS clusters across multiple AWS profiles and regions,
 
 ### Download a binary (recommended)
 
-Download the latest release for your platform from the [GitHub releases page](https://github.com/morgan-howarth/kubeconfig/releases).
+Download the latest release for your platform from the [GitHub releases page](https://github.com/morganhowarth-fd/kubeconfig/releases).
 
 ```sh
 # macOS (Apple Silicon)
