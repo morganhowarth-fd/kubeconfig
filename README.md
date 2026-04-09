@@ -4,15 +4,33 @@ A CLI tool that discovers EKS clusters across multiple AWS profiles and regions,
 
 ## Prerequisites
 
-- Go 1.25+
 - AWS CLI configured with SSO profiles in `~/.aws/config`
 - Active AWS SSO session (`aws sso login`)
 
 ## Install
 
-Download one of the pre-compiled binaries in the GitHub releases page and add it to your PATH. Or follow the build steps:
+### Download a binary (recommended)
 
-## Build
+Download the latest release for your platform from the [GitHub releases page](https://github.com/morgan-howarth/kubeconfig/releases).
+
+```sh
+# macOS (Apple Silicon)
+curl -L https://github.com/morgan-howarth/kubeconfig/releases/latest/download/kubeconfig_darwin_arm64.tar.gz | tar xz
+sudo mv kubeconfig /usr/local/bin/
+
+# macOS (Intel)
+curl -L https://github.com/morgan-howarth/kubeconfig/releases/latest/download/kubeconfig_darwin_x86_64.tar.gz | tar xz
+sudo mv kubeconfig /usr/local/bin/
+
+# Linux (amd64)
+curl -L https://github.com/morgan-howarth/kubeconfig/releases/latest/download/kubeconfig_linux_x86_64.tar.gz | tar xz
+sudo mv kubeconfig /usr/local/bin/
+```
+
+### Build from source:
+
+#### Prerequisites
+- Go 1.24+ (if building from source)
 
 ```sh
 go build -o kubeconfig ./main.go
@@ -36,6 +54,7 @@ kubeconfig [flags]
 |------|-------------|
 | `-dry-run` | Write the generated kubeconfig to a temp file instead of `~/.kube/config` |
 | `-account-prefix <prefix>` | Only include AWS profiles whose name starts with the given prefix |
+| `-role <role>` | Only include AWS profiles with this `sso_role_name` (exact match) |
 
 ### Examples
 
@@ -49,6 +68,18 @@ Only include profiles starting with `prod`:
 
 ```sh
 kubeconfig -account-prefix prod
+```
+
+Only include profiles with a specific SSO role:
+
+```sh
+kubeconfig -role AdministratorAccess
+```
+
+Combine filters:
+
+```sh
+kubeconfig -account-prefix prod -role ReadOnly
 ```
 
 Preview the output without modifying your kubeconfig:

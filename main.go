@@ -38,9 +38,10 @@ type clusterInfo struct {
 func main() {
 	dryRun := flag.Bool("dry-run", false, "write kubeconfig to a temp file instead of ~/.kube/config")
 	accountPrefix := flag.String("account-prefix", "", "only include profiles starting with this prefix")
+	role := flag.String("role", "", "only include profiles with this sso_role_name (exact match)")
 	flag.Parse()
 
-	profiles, err := parseAWSProfiles(*accountPrefix)
+	profiles, err := parseAWSProfiles(*accountPrefix, *role)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading AWS profiles: %v\n", err)
 		os.Exit(1)
@@ -153,8 +154,9 @@ func main() {
 	fmt.Println("Done.")
 }
 
-// parseAWSProfiles reads ~/.aws/config and returns all profile names.
-func parseAWSProfiles(prefix string) ([]string, error) {
+// parseAWSProfiles reads ~/.aws/config and returns all profile names,
+// optionally filtered by a name prefix and/or sso_role_name.
+func parseAWSProfiles(prefix, role string) ([]string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
@@ -166,19 +168,47 @@ func parseAWSProfiles(prefix string) ([]string, error) {
 	}
 	defer f.Close()
 
-	var profiles []string
+	type profileEntry struct {
+		name    string
+		ssoRole string
+	}
+
+	var entries []profileEntry
+	var current *profileEntry
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		var name string
 		if strings.HasPrefix(line, "[profile ") && strings.HasSuffix(line, "]") {
-			name = strings.TrimSuffix(strings.TrimPrefix(line, "[profile "), "]")
-		}
-		if name != "" && (prefix == "" || strings.HasPrefix(name, prefix)) {
-			profiles = append(profiles, name)
+			if current != nil {
+				entries = append(entries, *current)
+			}
+			name := strings.TrimSuffix(strings.TrimPrefix(line, "[profile "), "]")
+			current = &profileEntry{name: name}
+		} else if current != nil && strings.HasPrefix(line, "sso_role_name") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				current.ssoRole = strings.TrimSpace(parts[1])
+			}
 		}
 	}
-	return profiles, scanner.Err()
+	if current != nil {
+		entries = append(entries, *current)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	var profiles []string
+	for _, e := range entries {
+		if prefix != "" && !strings.HasPrefix(e.name, prefix) {
+			continue
+		}
+		if role != "" && e.ssoRole != role {
+			continue
+		}
+		profiles = append(profiles, e.name)
+	}
+	return profiles, nil
 }
 
 // discoverClusters lists and describes all EKS clusters for a given profile/region.
