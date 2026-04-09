@@ -52,9 +52,9 @@ kubeconfig [flags]
 
 | Flag | Description |
 |------|-------------|
-| `-dry-run` | Write the generated kubeconfig to a temp file instead of `~/.kube/config` |
-| `-account-prefix <prefix>` | Only include AWS profiles whose name starts with the given prefix |
-| `-role <role>` | Only include AWS profiles with this `sso_role_name` (exact match) |
+| `--dry-run` | Write the generated kubeconfig to a temp file instead of `~/.kube/config` |
+| `--account-prefix <prefix>` | Only include AWS profiles whose name starts with the given prefix |
+| `--role <role>` | Only include AWS profiles with this `sso_role_name` (exact match) |
 
 ### Examples
 
@@ -67,25 +67,25 @@ kubeconfig
 Only include profiles starting with `prod`:
 
 ```sh
-kubeconfig -account-prefix prod
+kubeconfig --account-prefix prod
 ```
 
 Only include profiles with a specific SSO role:
 
 ```sh
-kubeconfig -role AdministratorAccess
+kubeconfig --role AdministratorAccess
 ```
 
 Combine filters:
 
 ```sh
-kubeconfig -account-prefix prod -role ReadOnly
+kubeconfig --account-prefix prod --role ReadOnly
 ```
 
 Preview the output without modifying your kubeconfig:
 
 ```sh
-kubeconfig -dry-run
+kubeconfig --dry-run
 ```
 
 ## How it works
