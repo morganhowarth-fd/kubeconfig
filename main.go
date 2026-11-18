@@ -25,6 +25,7 @@ var regions = []string{
 	"us-east-2",
 	"us-west-2",
 	"ca-west-1",
+	"eu-west-1",
 }
 
 type clusterInfo struct {

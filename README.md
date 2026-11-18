@@ -91,5 +91,5 @@ kubeconfig --dry-run
 ## How it works
 
 1. Reads all `[profile ...]` entries from `~/.aws/config`
-2. Concurrently queries the EKS API in each region (`us-east-1`, `us-east-2`, `us-west-2`, `ca-west-1`) for every profile
+2. Concurrently queries the EKS API in each region (`us-east-1`, `us-east-2`, `us-west-2`, `ca-west-1`, `eu-west-1`) for every profile
 3. Merges discovered clusters into `~/.kube/config`, configuring each context to authenticate via `aws eks get-token` with the correct profile and region
